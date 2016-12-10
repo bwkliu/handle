@@ -3,7 +3,7 @@
 '''
 Created on 2016年11月25日
 
-@author: liu
+@author: liuwei
 '''
 
 from ib.ext.Contract import Contract
