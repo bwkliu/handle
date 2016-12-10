@@ -102,11 +102,12 @@ def my_BidAsk_handle(bid_ask_q):
     while True:
       try:
         value = bid_ask_q.get(True)
+        print value
       except Exception,e:
         print  e
          
       
-      print >> log_file,value
+      
                
 
 if __name__ == '__main__':

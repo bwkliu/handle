@@ -246,7 +246,7 @@ if __name__ == '__main__':
   #contract=Util.makeContract(contractSymbol='YM',secType='FUT',expiry='20161216',exchange='ECBOT')
   contract=Util.makeContract(contractSymbol='INDU',secType='IND',exchange='NYSE')
   tickID=1
-  hhd.reqSche(tickID,contract,'150 D','20161109' + ' 23:59:59','1 min')
+  hhd.reqSche(tickID,contract,'200 D','20160412' + ' 23:59:59','1 min')
   
   
   con.connect()
