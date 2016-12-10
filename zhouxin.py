@@ -2,6 +2,8 @@ import pandas as pd
 from Util import Util
 import sys,os,datetime,pytz
 
+filePath='g:/handle/HistData/'
+
 def yestodayHLC(yestodayDateStr=''):
   beijingDatetime = None
   try:
@@ -12,16 +14,14 @@ def yestodayHLC(yestodayDateStr=''):
       
     estDatetime =  Util.coverToEstDatetime(beijingDatetime)
     startDate= estDatetime  - pd.tseries.offsets.BDay()*2
-    endDate= estDatetime  - pd.tseries.offsets.BDay()*2
-    endFile='g:/ibpy/HistData/%s_%s_%s_1_min.csv' % ('YM','FUT',endDate.strftime('%Y%m%d'))
-    startFile='g:/ibpy/HistData/%s_%s_%s_1_min.csv' % ('YM','FUT',startDate.strftime('%Y%m%d'))
+    endDate= estDatetime  - pd.tseries.offsets.BDay()
+    endFile=filePath + '%s_%s_%s_1_min.csv' % ('YM','FUT',endDate.strftime('%Y%m%d'))
+    startFile=filePath + '%s_%s_%s_1_min.csv' % ('YM','FUT',startDate.strftime('%Y%m%d'))
     startDF=pd.read_csv(startFile)
     endDF=pd.read_csv(endFile)
     ymDF=pd.concat([startDF,endDF])
     ymDF.index=pd.DatetimeIndex(pd.to_datetime(ymDF.date_time))
-    print startDate.strftime('%Y%m%d')+' 16:30' , endDate.strftime('%Y%m%d')+' 16:14'
     yestodyDF=ymDF[startDate.strftime('%Y%m%d')+' 16:30' : endDate.strftime('%Y%m%d')+' 16:14']
-    print yestodyDF
     h,l,c=(yestodyDF.High.max(),yestodyDF.Low.min(),yestodyDF.Close[-1])
     return (h,l,c)
   except Exception,e:
@@ -43,3 +43,7 @@ def zhouxin(h,l,c):
   data={'Close':c,'zuli_3':zl3,'zuli_2':zl2,'zuli_1':zl1,'center':zhouxin,'zhicheng_1':zc1,'zhicheng_2':zc2,'zhicheng_3':zc3}
   zhouxinDF=pd.DataFrame(data,index=pd.DatetimeIndex(['2016-12-08']));
   return zhouxinDF
+
+
+if __name__  == '__main__':
+  yestodayHLC('20161209 20:00:00')
