@@ -25,9 +25,8 @@ class HandleHisData:
     self.m_conn=conn
     self.tick_contract_Map={}
     self.taskQueue=Queue()
-    
-    self.pool = redis.ConnectionPool(host='127.0.0.1', port=6379)  
-    self.redis = redis.Redis(connection_pool=self.pool)
+
+    self.redis_conn = redis.Redis(host='127.0.0.1', port=6379)
     
     self.write2file = False
     self.newRowData = []
@@ -107,7 +106,7 @@ class HandleHisData:
     
   def appendToFile(self,tickID,directory,c_symbol,c_secType,endESTDateStr,endESTtimeStr,barLength):
     
-    directory="HistData"
+    directory="HistData" + '/' + c_symbol
     if not os.path.exists(directory):
       os.makedirs(directory)
     barLengthStr = barLength.replace(" ","_") # add the bar length to the file name
@@ -117,11 +116,15 @@ class HandleHisData:
         oldRowData = file.readlines()
         file.close()
         prevRec=len(oldRowData)
+        
         if prevRec > 1:
             # get the new end date and time from the last data line of the file
             lastRow = oldRowData[-1]
             lastRowData=lastRow.split(",")
             endtimeStr = ' %s:%s:%s EST' % (lastRowData[3],lastRowData[4],lastRowData[5])
+            
+            print lastRow
+            
             #20161211 16:00:00 EST
             if endtimeStr.find('::') :
                 if barLength=='1 day':
@@ -149,6 +152,7 @@ class HandleHisData:
             file = open(fileName, 'w')
             file.writelines(Data)
             file.close()
+            self.redis_conn.set(c_symbol+'_'+c_secType + '_' + endESTDateStr,'complete')
             print len(Data)-prevRec,' of CSV data appended to file: ', fileName
     
   
@@ -243,10 +247,10 @@ if __name__ == '__main__':
   hhd=HandleHisData(con)
   con.register(hhd.reviceHisData, message.historicalData)
   
-  #contract=Util.makeContract(contractSymbol='YM',secType='FUT',expiry='20161216',exchange='ECBOT')
-  contract=Util.makeContract(contractSymbol='INDU',secType='IND',exchange='NYSE')
+  contract=Util.makeContract(contractSymbol='YM',secType='FUT',expiry='20161216',exchange='ECBOT')
+  #contract=Util.makeContract(contractSymbol='INDU',secType='IND',exchange='NYSE')
   tickID=1
-  hhd.reqSche(tickID,contract,'200 D','20160412' + ' 23:59:59','1 min')
+  hhd.reqSche(tickID,contract,'3 D','20161211' + ' 23:59:59','1 min')
   
   
   con.connect()
