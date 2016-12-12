@@ -23,10 +23,16 @@ import time,redis,time,pytz,sys,os
 import pandas as pd
 from Util import Util
 from utils import dataTypes
+import json
+import logging.config
+
 
 class RealJumpHandle:
 
     def __init__(self,clientId=3, host="127.0.0.1", port=7496):
+      self.setup_logging()
+      logging.info("start func")
+      sys.exit()
       self.getCurrDayOpenTimestampSecs()
       self.pool = redis.ConnectionPool(host='127.0.0.1', port=6379)  
       self.redis = redis.Redis(connection_pool=self.pool)
@@ -35,7 +41,19 @@ class RealJumpHandle:
       self.ibConn.connect(clientId=3, host="127.0.0.1", port=7496)
       self.ibConn.ibCallback = self.ibCallback
       
-      
+    
+    
+    def setup_logging(self,default_path = "logging.json",default_level = logging.INFO,env_key = "LOG_CFG"):
+        path = default_path
+        value = os.getenv(env_key,None)
+        if value:
+            path = value
+        if os.path.exists(path):
+            with open(path,"r") as f:
+                config = json.load(f)
+                logging.config.dictConfig(config)
+        else:
+            logging.basicConfig(level = default_level)  
       
             
 
