@@ -103,6 +103,7 @@ def my_BidAsk_handle(bid_ask_q):
       try:
         value = bid_ask_q.get(True)
         print value
+        
       except Exception,e:
         print  e
          

@@ -240,20 +240,22 @@ if __name__ == '__main__':
   #futContact=Util.makeContract(contractSymbol='TICK-NYSE',secType='IND',expiry='',exchange='NYSE')
   
   
-  con = ibConnection(host='localhost',port=7496,clientId=0)
+  con = ibConnection(host='localhost',port=7497,clientId=0)
   con.registerAll(Util.watchAll)
   con.unregister(Util.watchAll, message.historicalData)
   
   hhd=HandleHisData(con)
   con.register(hhd.reviceHisData, message.historicalData)
   
-  contract=Util.makeContract(contractSymbol='YM',secType='FUT',expiry='20161216',exchange='ECBOT')
+  #contract=Util.makeContract(contractSymbol='YM',secType='FUT',expiry='20161216',exchange='ECBOT')
   #contract=Util.makeContract(contractSymbol='INDU',secType='IND',exchange='NYSE')
+  contract=Util.makeContract(contractSymbol='AAPL',secType='STK',exchange='SMART')
   tickID=1
-  hhd.reqSche(tickID,contract,'3 D','20161211' + ' 23:59:59','1 min')
+  hhd.reqSche(tickID,contract,'10 D','20161211' + ' 23:59:59','1 min')
   
   
   con.connect()
+  time.sleep(3)
   hhd.reqIbHistData()
   #futContact=Util.makeContract(contaceSymbol='ES',secType='FUT',expiry='20161216',exchange='GLOBEX')
   #futContact=Util.makeContract(contaceSymbol='YM',secType='FUT',expiry='20161216',exchange='ECBOT')
