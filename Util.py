@@ -2,11 +2,15 @@
 # -*- coding: utf-8 -*-
 import sys,os.path,time,datetime,pytz
 from ib.ext.Contract import Contract
+import pandas as pd
 
-bjTZ=pytz.timezone('Asia/Shanghai')
-estTZ=pytz.timezone('US/Eastern')
+
 
 class Util:
+  bjTZ=pytz.timezone('Asia/Shanghai')
+  estTZ=pytz.timezone('US/Eastern')
+    
+    
   @staticmethod
   def makeContract(contractSymbol='',secType='',exchange='',currency='USD',expiry='',strike='0.0',right=''):
     newContract = Contract()
@@ -34,6 +38,35 @@ class Util:
     localDatetime = localTZ.localize(localDatetime)
     covertDatetime = localDatetime.astimezone(covertTZ)           
     covertTimestamp=time.mktime(covertDatetime.timetuple())
+    return covertTimestamp
+  
+  @staticmethod
+  def yestodayHLC(yestodayDateStr=None,contractSymbol='YM',contractSecType='FUT'):
+    beijingDatetime = None
+    filePath = 'HistData/'+contractSymbol+'/'
+    try:
+      if not yestodayDateStr:
+        beijingDatetime = datetime.datetime.now()
+      else:
+        beijingDatetime = pd.to_datetime(yestodayDateStr)  
+        
+      estDatetime =  Util.coverToEstDatetime(beijingDatetime)
+      startDate= estDatetime  - pd.tseries.offsets.BDay()*2
+      endDate= estDatetime  - pd.tseries.offsets.BDay()
+      endFile=filePath + '%s_%s_%s_1_min.csv' % (contractSymbol,contractSecType,endDate.strftime('%Y%m%d'))
+      startFile=filePath + '%s_%s_%s_1_min.csv' % (contractSymbol,contractSecType,startDate.strftime('%Y%m%d'))
+      startDF=pd.read_csv(startFile)
+      endDF=pd.read_csv(endFile)
+      ymDF=pd.concat([startDF,endDF])
+      ymDF.index=pd.DatetimeIndex(pd.to_datetime(ymDF.date_time))
+      yestodyDF=ymDF[startDate.strftime('%Y%m%d')+' 16:30' : endDate.strftime('%Y%m%d')+' 16:14']
+      h,l,c=(yestodyDF.High.max(),yestodyDF.Low.min(),yestodyDF.Close[-1])
+      return (h,l,c)
+    except Exception,e:
+      print "yestoday HLC error"
+      print e
+      sys.exit()
+  
   
   
   @staticmethod

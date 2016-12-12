@@ -27,12 +27,16 @@ ibConn.connect(clientId=3, host="127.0.0.1", port=7497)
 
 # create a contract
 contract = ibConn.createFuturesContract("ES", exchange="GLOBEX", expiry="201612")
+contract = ibConn.createFuturesContract("YM", exchange="ECBOT", expiry="201612")
+ibConn.requestMarketData()
 
 # submit a bracket order (entry=0 = MKT order)
-order = ibConn.createBracketOrder(contract, quantity=1, entry=0, target=2200., stop=1900.)
+#order = ibConn.createBracketOrder(contract, quantity=1, entry=0, target=2200., stop=1900.)
+
+
 
 # let order fill
-time.sleep(3)
+time.sleep(3000)
 
 # see the positions
 print("Positions")

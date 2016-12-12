@@ -1,37 +1,11 @@
 import pandas as pd
 from Util import Util
 import sys,os,datetime,pytz
+import redis
 
-filePath='g:/handle/HistData/'
 
-def yestodayHLC(yestodayDateStr=''):
-  beijingDatetime = None
-  try:
-    if not yestodayDateStr:
-      beijingDatetime = datetime.datetime.now().strftime('%Y%m%d')
-    else:
-      beijingDatetime = pd.to_datetime(yestodayDateStr)  
-      
-    estDatetime =  Util.coverToEstDatetime(beijingDatetime)
-    startDate= estDatetime  - pd.tseries.offsets.BDay()*2
-    endDate= estDatetime  - pd.tseries.offsets.BDay()
-    endFile=filePath + '%s_%s_%s_1_min.csv' % ('YM','FUT',endDate.strftime('%Y%m%d'))
-    startFile=filePath + '%s_%s_%s_1_min.csv' % ('YM','FUT',startDate.strftime('%Y%m%d'))
-    startDF=pd.read_csv(startFile)
-    endDF=pd.read_csv(endFile)
-    ymDF=pd.concat([startDF,endDF])
-    ymDF.index=pd.DatetimeIndex(pd.to_datetime(ymDF.date_time))
-    yestodyDF=ymDF[startDate.strftime('%Y%m%d')+' 16:30' : endDate.strftime('%Y%m%d')+' 16:14']
-    h,l,c=(yestodyDF.High.max(),yestodyDF.Low.min(),yestodyDF.Close[-1])
-    return (h,l,c)
-  except Exception,e:
-    print "yestoday HLC error"
-    print e
-    sys.exit()
-   
+
     
-  
-
 def zhouxin(h,l,c):
   zhouxin=(c+h+l)/3;
   zl1=2*zhouxin-l;
@@ -46,4 +20,11 @@ def zhouxin(h,l,c):
 
 
 if __name__  == '__main__':
-  yestodayHLC('20161209 20:00:00')
+  h,l,c=Util.yestodayHLC('20161212 20:00:00','AAPL','STK')
+  #redis = redis.Redis(host='127.0.0.1', port=6379)
+  #currDay=datetime.datetime.now().strftime('%Y%m%d')
+  #redis.set(currDay+'_is_jump_excute',0)
+  #redis.set(currDay+'_yestoDay_C',c)
+  print h,l,c
+  zhouxinDF=zhouxin(h,l,c)
+  print zhouxinDF

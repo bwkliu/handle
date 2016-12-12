@@ -172,10 +172,10 @@ class ezIBpy():
 
         # subscribe to position and account changes
         self.subscribePositions = False
-        self.requestPositionUpdates(subscribe=True)
+        #self.requestPositionUpdates(subscribe=True)
 
         self.subscribeAccount = False
-        self.requestAccountUpdates(subscribe=True)
+        #self.requestAccountUpdates(subscribe=True)
 
         # force refresh of orderId upon connect
         self.handleNextValidId(self.orderId)
