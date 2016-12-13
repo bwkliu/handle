@@ -8,13 +8,13 @@ Created on 2016年11月25日
 
 from ib.ext.Contract import Contract
 from ib.opt import ibConnection, message
-import sys,os.path, time,datetime,pytz
+import sys,os.path, time,datetime,pytz,logging
 from collections import OrderedDict
 import pandas as pd
 from Util import Util
 import redis
 from multiprocessing import Queue
-
+import pdb
 
 
 
@@ -22,6 +22,7 @@ from multiprocessing import Queue
 class HandleHisData:
   
   def __init__(self,conn):
+    Util.setup_logging()
     self.m_conn=conn
     self.tick_contract_Map={}
     self.taskQueue=Queue()
@@ -38,7 +39,7 @@ class HandleHisData:
     self.m_endESTtimeStr = ''
     self.m_barLength = ''
     self.m_duration=''
-    
+    self.tickId=1
     #self.logFile=open('./logfile.txt', 'w+')
   
   def setContract(self,tickId,contract,endDateStr,duration='2 D',barLength='1 day',whatToShow='TRADES',useRTH=0,formatDate=1):
@@ -56,8 +57,19 @@ class HandleHisData:
     self.tick_contract_Map[tickId]['formatDate']=formatDate
   
   def reviceHisData(self,msg,msgTZ='US/Eastern'):
-    #print >> self.logFile, msg
-    if int(msg.high) > 0:
+    #logging.info(str(msg))
+    
+    if msg.date.startswith('finished-')  and int(msg.open)== -1 and int(msg.high)==-1 and  int(msg.low)==-1 and int(msg.close)==-1:
+        if self.tick_contract_Map.has_key(msg.reqId):
+            reqDic = self.tick_contract_Map[msg.reqId]
+            reqDic['finished'] = True
+            reqDic['write2file'] = True
+            if len(reqDic['reviceData'])  > 0 and reqDic['write2file']:
+              logging.info(  'msg.id:%s endDateStr:%s' % (msg.reqId,reqDic['endDateStr'])  )
+              self.appendToFile(msg.reqId,'HistData',reqDic['contract'].m_symbol,reqDic['contract'].m_secType,reqDic['endDateStr'].split(' ')[0],reqDic['endDateStr'],reqDic['barLength'])
+              del reqDic['reviceData'][:]
+              
+    else:
       estTZ=pytz.timezone('US/Eastern')
       estDatetime=''
       if  len(msg.date) == 8:
@@ -69,14 +81,7 @@ class HandleHisData:
       dataStr =  '%s,%s,%s,%s,%s,%s' % (NYtimeStr,msg.open,msg.high,msg.low,msg.close,msg.volume)      
       if self.tick_contract_Map.has_key(msg.reqId):        
         self.tick_contract_Map[msg.reqId]['reviceData'].append(dataStr+'\n')   
-    elif int(msg.high) == -1:
-      if self.tick_contract_Map.has_key(msg.reqId):
-        reqDic = self.tick_contract_Map[msg.reqId]
-        reqDic['finished'] = True
-        reqDic['write2file'] = True
-        if len(reqDic['reviceData'])  > 0 and reqDic['write2file']:
-          self.appendToFile(msg.reqId,'HistData',reqDic['contract'].m_symbol,reqDic['contract'].m_secType,reqDic['endDateStr'].split(' ')[0],reqDic['endDateStr'],reqDic['barLength'])
-      
+    
     
     
     
@@ -162,8 +167,8 @@ class HandleHisData:
         break
       reqDic = self.taskQueue.get()
       try:
-        print reqDic['contract'],reqDic['duration'],reqDic['barLength']
         if self.m_conn.isConnected():
+          logging.info('tickId:%s endDateStr:%s duration:%s barLength:%s' %(reqDic['tickId'],reqDic['endDateStr'],reqDic['duration'],reqDic['barLength']))
           self.m_conn.reqHistoricalData(reqDic['tickId'],
                             reqDic['contract'],
                             reqDic['endDateStr'], # last requested bar date/time
@@ -184,49 +189,52 @@ class HandleHisData:
   def reqSche(self,tickId,contract,duration,endDatetimeStr,barLength,whatToShow='TRADES',useRTH=0,formatDate=1,write2file=True,write2redis=False):
     endDatetime = pd.to_datetime(endDatetimeStr)
     durationArr = duration.split(' ')
-
     if barLength == '1 min':
       startDatetime = endDatetime -   int(durationArr[0]) * pd.tseries.offsets.BDay()
       datetimeDelta = endDatetime - startDatetime
       if barLength == '1 min' and datetimeDelta.days >= 1:
         while startDatetime <= endDatetime:
-          if  not self.tick_contract_Map.has_key(tickId):
-            self.tick_contract_Map[tickId]={}
-          self.tick_contract_Map[tickId]['tickId'] = tickId
-          self.tick_contract_Map[tickId]['contract'] = contract
-          self.tick_contract_Map[tickId]['endDateStr']=startDatetime.strftime('%Y%m%d') + " 23:59:59 EST"
-          self.tick_contract_Map[tickId]['duration']='2 D'
-          self.tick_contract_Map[tickId]['barLength']=barLength
-          self.tick_contract_Map[tickId]['whatToShow']=whatToShow
-          self.tick_contract_Map[tickId]['useRTH']=useRTH
-          self.tick_contract_Map[tickId]['formatDate']=formatDate
-          self.tick_contract_Map[tickId]['reviceData']=[]
-          self.tick_contract_Map[tickId]['finished']=False
-          self.tick_contract_Map[tickId]['write2file']=True
-          self.tick_contract_Map[tickId]['write2redis']=False
+          if  not self.tick_contract_Map.has_key(self.tickId):
+            self.tick_contract_Map[self.tickId]={}
+          self.tick_contract_Map[self.tickId]['tickId'] = self.tickId
+          self.tick_contract_Map[self.tickId]['contract'] = contract
+          self.tick_contract_Map[self.tickId]['endDateStr']=startDatetime.strftime('%Y%m%d') + " 23:59:59 EST"
+          if contract.m_secType == 'FUT':
+            self.tick_contract_Map[self.tickId]['duration']='2 D'
+          else:
+            self.tick_contract_Map[self.tickId]['duration']='1 D'
+          
+          self.tick_contract_Map[self.tickId]['barLength']=barLength
+          self.tick_contract_Map[self.tickId]['whatToShow']=whatToShow
+          self.tick_contract_Map[self.tickId]['useRTH']=useRTH
+          self.tick_contract_Map[self.tickId]['formatDate']=formatDate
+          self.tick_contract_Map[self.tickId]['reviceData']=[]
+          self.tick_contract_Map[self.tickId]['finished']=False
+          self.tick_contract_Map[self.tickId]['write2file']=True
+          self.tick_contract_Map[self.tickId]['write2redis']=False
           
           startDatetime = startDatetime +  pd.tseries.offsets.BDay()
           
-          self.taskQueue.put(self.tick_contract_Map[tickId])
+          self.taskQueue.put(self.tick_contract_Map[self.tickId])
           
-          tickId = tickId + 1
+          self.tickId = self.tickId + 1
     else:
-      if  not self.tick_contract_Map.has_key(tickId):
-        self.tick_contract_Map[tickId]={}
-      self.tick_contract_Map[tickId]['tickId'] = tickId
-      self.tick_contract_Map[tickId]['contract'] = contract
-      self.tick_contract_Map[tickId]['endDateStr']=endDatetime.strftime('%Y%m%d') + " 23:59:59 EST"
-      self.tick_contract_Map[tickId]['duration'] = duration
-      self.tick_contract_Map[tickId]['barLength']=barLength
-      self.tick_contract_Map[tickId]['whatToShow']=whatToShow
-      self.tick_contract_Map[tickId]['useRTH']=useRTH
-      self.tick_contract_Map[tickId]['formatDate']=formatDate
-      self.tick_contract_Map[tickId]['reviceData']=[]
-      self.tick_contract_Map[tickId]['finished']=False
-      self.tick_contract_Map[tickId]['write2file']=True
-      self.tick_contract_Map[tickId]['write2redis']=False
-      self.taskQueue.put(self.tick_contract_Map[tickId])
-      tickId = tickId + 1  
+      if  not self.tick_contract_Map.has_key(self.tickId):
+        self.tick_contract_Map[self.tickId]={}
+      self.tick_contract_Map[self.tickId]['tickId'] = self.tickId
+      self.tick_contract_Map[self.tickId]['contract'] = contract
+      self.tick_contract_Map[self.tickId]['endDateStr']=endDatetime.strftime('%Y%m%d') + " 23:59:59 EST"
+      self.tick_contract_Map[self.tickId]['duration'] = duration
+      self.tick_contract_Map[self.tickId]['barLength']=barLength
+      self.tick_contract_Map[self.tickId]['whatToShow']=whatToShow
+      self.tick_contract_Map[self.tickId]['useRTH']=useRTH
+      self.tick_contract_Map[self.tickId]['formatDate']=formatDate
+      self.tick_contract_Map[self.tickId]['reviceData']=[]
+      self.tick_contract_Map[self.tickId]['finished']=False
+      self.tick_contract_Map[self.tickId]['write2file']=True
+      self.tick_contract_Map[self.tickId]['write2redis']=False
+      self.taskQueue.put(self.tick_contract_Map[self.tickId])
+      self.tickId = self.tickId + 1  
         
     
 
@@ -240,7 +248,7 @@ if __name__ == '__main__':
   #futContact=Util.makeContract(contractSymbol='TICK-NYSE',secType='IND',expiry='',exchange='NYSE')
   
   
-  con = ibConnection(host='localhost',port=7496,clientId=0)
+  con = ibConnection(host='localhost',port=7497,clientId=0)
   con.registerAll(Util.watchAll)
   con.unregister(Util.watchAll, message.historicalData)
   
@@ -251,10 +259,13 @@ if __name__ == '__main__':
   #contract=Util.makeContract(contractSymbol='INDU',secType='IND',exchange='NYSE')
   #contract=Util.makeContract(contractSymbol='GS',secType='STK',exchange='SMART')
   #contract=Util.makeContract(contractSymbol='ES',secType='FUT',expiry='20161216',exchange='GLOBEX')
-  contract=Util.makeContract(contractSymbol='TICK-NYSE',secType='IND',exchange='NYSE')
+  #contract=Util.makeContract(contractSymbol='TICK-NYSE',secType='IND',exchange='NYSE')
   
-  tickID=1
-  hhd.reqSche(tickID,contract,'200 D','20161211' + ' 23:59:59','1 min')
+  
+  #hhd.reqSche(hhd.tickId,Util.makeContract(contractSymbol='TICK-NYSE',secType='IND',exchange='NYSE'),'1 D','20161212' + ' 23:59:59','1 min')
+  hhd.reqSche(hhd.tickId,Util.makeContract(contractSymbol='YM',secType='FUT',expiry='20161216',exchange='ECBOT'),'4 D','20161213' + ' 23:59:59','1 min')
+  
+  
   
   
   con.connect()

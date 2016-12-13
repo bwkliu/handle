@@ -25,35 +25,25 @@ from Util import Util
 from utils import dataTypes
 import json
 import logging.config
+import calendar as cal
 
 
 class RealJumpHandle:
 
     def __init__(self,clientId=3, host="127.0.0.1", port=7496):
-      self.setup_logging()
-      logging.info("start func")
-      sys.exit()
+      Util.setup_logging()
+      self.tickLogger = logging.getLogger('tick_module')
       self.getCurrDayOpenTimestampSecs()
       self.pool = redis.ConnectionPool(host='127.0.0.1', port=6379)  
       self.redis = redis.Redis(connection_pool=self.pool)
       self.isJumpStartTime = False
       self.ibConn = ezibpy.ezIBpy()
-      self.ibConn.connect(clientId=3, host="127.0.0.1", port=7496)
+      self.ibConn.connect(clientId, host, port)
       self.ibConn.ibCallback = self.ibCallback
       
     
     
-    def setup_logging(self,default_path = "logging.json",default_level = logging.INFO,env_key = "LOG_CFG"):
-        path = default_path
-        value = os.getenv(env_key,None)
-        if value:
-            path = value
-        if os.path.exists(path):
-            with open(path,"r") as f:
-                config = json.load(f)
-                logging.config.dictConfig(config)
-        else:
-            logging.basicConfig(level = default_level)  
+      
       
             
 
@@ -61,7 +51,7 @@ class RealJumpHandle:
         currDateStr=pd.datetime.now().strftime('%Y%m%d')
         currDatetime=pd.to_datetime(currDateStr + ' 09:30:00')
         currDatetime = Util.estTZ.localize(currDatetime)
-        self.openTimestampSecs=time.mktime(currDatetime.timetuple())
+        self.openTimestampSecs=cal.timegm(currDatetime.utctimetuple())
         
     
     def getYestodyDataFromRedis(self):
@@ -85,16 +75,19 @@ class RealJumpHandle:
             sys.exit()
         
     def jumpExcute(self,tickPrice):
+        logging.info( 'start jumpExcute func,isJumpStartTime:%s' % self.isJumpStartTime )
         if self.isJumpStartTime:
             try:
+                is_jump_excute = 0
                 currDay=pd.datetime.now().strftime('%Y%m%d')
                 is_jump_excute = int(self.redis.get(currDay+'_is_jump_excute'))
                 yestodyClose =   float( self.redis.get(currDay+'_yestoDay_C') )
                 currPrice =  float(tickPrice)
                 if is_jump_excute:
-                    #contract = self.ibConn.createFuturesContract("YM", exchange="GLOBEX", expiry="201612")
+                    contract = self.ibConn.createFuturesContract("YM", exchange="ECBOT", expiry="201612")
 
                     diffOpen_yestodayClose = currPrice - yestodyClose
+                    logging.info('tickPrice:%s yestodyClose:%s diffOpen_yestodayClose:%s' % (tickPrice,yestodyClose,diffOpen_yestodayClose))
                     
                     if abs(diffOpen_yestodayClose) < 10:
                         self.isJumpStartTime = False
@@ -107,11 +100,14 @@ class RealJumpHandle:
                             stop = round( (currPrice + diffOpen_yestodayClose ),0) - 1
                         else:
                             stop = round( (currPrice + diffOpen_yestodayClose*1.5 ),0) - 1
-                        #order = self.ibConn.createBracketOrder(contract, quantity=-1, entry=0, target=2200, stop=1900.)
+                        
+                        order = self.ibConn.createBracketOrder(contract, quantity=-1, entry=0, target=target, stop=stop)
                         self.isJumpStartTime = False
                         self.redis.set(currDay+'_is_jump_excute',0)
-                        print "sell,main:%s,target:%s,stop:%s" % ('mkt',target,stop)
-                        print '********************************'           
+                        time.sleep(2)
+                        logging.info('tickPrice:%s yestodyClose:%s quantity:-1 entry:MKT target:%s stop:%s' % (tickPrice,yestodyClose,target,stop))
+                        logging.info( "sell,main:%s,target:%s,stop:%s" % ('mkt',target,stop) )
+                                   
                         
                     elif diffOpen_yestodayClose < -10:
                         target = round( (currPrice + abs(diffOpen_yestodayClose) / 2 ),0) - 1
@@ -120,34 +116,38 @@ class RealJumpHandle:
                         else:
                             stop = round( (currPrice - abs(diffOpen_yestodayClose)*1.5 ),0) - 1
                         
-                        #order = self.ibConn.createBracketOrder(contract, quantity=1, entry=0, target=2200, stop=1900.)
+                        order = self.ibConn.createBracketOrder(contract, quantity=1, entry=0, target=target, stop=stop)
                         self.isJumpStartTime = False
                         self.redis.set(currDay+'_is_jump_excute',0)
-                        print "buy,main:%s,target:%s,stop:%s" % ('mkt',target,stop)
-                        print '********************************'
+                        time.sleep(2)
+                        logging.info('tickPrice:%s yestodyClose:%s quantity:1 entry:MKT target:%s stop:%s' % (tickPrice,yestodyClose,target,stop))
+                        logging.info( "buy,main:%s,target:%s,stop:%s" % ('mkt',target,stop) )
+                        
             except Exception,e:
                 print e
+                logging.debug( e.message )
                 sys.exit()    
-    
+        logging.info( 'end jumpExcute func' )
        
         
 
     def ibCallback(self,caller, msg, **kwargs):
+        self.tickLogger.info(str(msg))
         if caller == "handleOrders":
             order = ibConn.orders[msg.orderId]
             if order["status"] == "FILLED":
                 print(">>> ORDER FILLED")
                 
         elif caller == "handleTickPrice":
-            
             if  self.isJumpStartTime:
                 print ( 'msg.tikePrice:%s' % msg.price )
                 self.jumpExcute(msg.price)
             
         elif caller == "handleTickString":
             if msg.tickType == dataTypes["FIELD_LAST_TIMESTAMP"]:
-                print 'msg value:%s' % msg.value
+                
                 if msg.value ==  self.openTimestampSecs:
+                    logging.info( 'msg value:%s currDayOpenTimestampSecs:%s' % (msg.value,self.openTimestampSecs) )
                     self.isJumpStartTime = True
             
             print ( 'custom CallBack:%s' % str(msg) )

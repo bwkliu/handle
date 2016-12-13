@@ -20,11 +20,12 @@ def zhouxin(h,l,c):
 
 
 if __name__  == '__main__':
-  h,l,c=Util.yestodayHLC('20161212 20:00:00','AAPL','STK')
-  #redis = redis.Redis(host='127.0.0.1', port=6379)
-  #currDay=datetime.datetime.now().strftime('%Y%m%d')
-  #redis.set(currDay+'_is_jump_excute',0)
-  #redis.set(currDay+'_yestoDay_C',c)
+  h,l,c=Util.yestodayHLC('20161213 20:00:00','YM','FUT')
+  redis = redis.Redis(host='127.0.0.1', port=6379)
+  currDay=datetime.datetime.now().strftime('%Y%m%d')
+  redis.set(currDay+'_is_jump_excute',0)
+  redis.set(currDay+'_yestoDay_C',c)
   print h,l,c
   zhouxinDF=zhouxin(h,l,c)
+  
   print zhouxinDF
