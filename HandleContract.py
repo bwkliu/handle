@@ -263,7 +263,7 @@ if __name__ == '__main__':
   
   
   #hhd.reqSche(hhd.tickId,Util.makeContract(contractSymbol='TICK-NYSE',secType='IND',exchange='NYSE'),'1 D','20161212' + ' 23:59:59','1 min')
-  hhd.reqSche(hhd.tickId,Util.makeContract(contractSymbol='YM',secType='FUT',expiry='20161216',exchange='ECBOT'),'4 D','20161213' + ' 23:59:59','1 min')
+  hhd.reqSche(hhd.tickId,Util.makeContract(contractSymbol='ES',secType='FUT',expiry='20161216',exchange='GLOBEX'),'90 D','20161216' + ' 23:59:59','1 min')
   
   
   

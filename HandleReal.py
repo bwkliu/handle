@@ -30,7 +30,7 @@ import calendar as cal
 
 class RealJumpHandle:
 
-    def __init__(self,clientId=3, host="127.0.0.1", port=7496):
+    def __init__(self,clientId=3, host="127.0.0.1", port=7497):
       Util.setup_logging()
       self.tickLogger = logging.getLogger('tick_module')
       self.getCurrDayOpenTimestampSecs()
@@ -75,7 +75,8 @@ class RealJumpHandle:
             sys.exit()
         
     def jumpExcute(self,tickPrice):
-        logging.info( 'start jumpExcute func,isJumpStartTime:%s' % self.isJumpStartTime )
+        jumpLogger = logging.getLogger('jump_module')
+        jumpLogger.info( 'start jumpExcute func,isJumpStartTime:%s' % self.isJumpStartTime )
         if self.isJumpStartTime:
             try:
                 is_jump_excute = 0
@@ -105,8 +106,8 @@ class RealJumpHandle:
                         self.isJumpStartTime = False
                         self.redis.set(currDay+'_is_jump_excute',0)
                         time.sleep(2)
-                        logging.info('tickPrice:%s yestodyClose:%s quantity:-1 entry:MKT target:%s stop:%s' % (tickPrice,yestodyClose,target,stop))
-                        logging.info( "sell,main:%s,target:%s,stop:%s" % ('mkt',target,stop) )
+                        jumpLogger.info('tickPrice:%s yestodyClose:%s quantity:-1 entry:MKT target:%s stop:%s' % (tickPrice,yestodyClose,target,stop))
+                        jumpLogger.info( "sell,main:%s,target:%s,stop:%s" % ('mkt',target,stop) )
                                    
                         
                     elif diffOpen_yestodayClose < -10:
@@ -120,8 +121,8 @@ class RealJumpHandle:
                         self.isJumpStartTime = False
                         self.redis.set(currDay+'_is_jump_excute',0)
                         time.sleep(2)
-                        logging.info('tickPrice:%s yestodyClose:%s quantity:1 entry:MKT target:%s stop:%s' % (tickPrice,yestodyClose,target,stop))
-                        logging.info( "buy,main:%s,target:%s,stop:%s" % ('mkt',target,stop) )
+                        jumpLogger.info('tickPrice:%s yestodyClose:%s quantity:1 entry:MKT target:%s stop:%s' % (tickPrice,yestodyClose,target,stop))
+                        jumpLogger.info( "buy,main:%s,target:%s,stop:%s" % ('mkt',target,stop) )
                         
             except Exception,e:
                 print e
